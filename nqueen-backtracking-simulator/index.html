@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>n-queen 백트래킹 시뮬레이터</title>
+  <style>
+    :root {
+      --bg: #eef1f5;
+      --panel: #ffffff;
+      --panel-2: #f8fafc;
+      --ink: #182230;
+      --muted: #667085;
+      --line: #d0d7e2;
+      --line-dark: #344054;
+      --primary: #0f766e;
+      --primary-soft: #d9f3ef;
+      --blue: #2563eb;
+      --green-cell: #78c28b;
+      --red-cell: #ec6f8f;
+      --amber: #b45309;
+      --amber-soft: #fff2cc;
+      --white-cell: #ffffff;
+      --gray-cell: #d9dde3;
+      --shadow: 0 18px 46px rgba(24, 34, 48, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, "Noto Sans KR", sans-serif;
+      line-height: 1.45;
+    }
+
+    button { font: inherit; }
+
+    main {
+      width: min(1440px, 100%);
+      margin: 0 auto;
+      padding: clamp(14px, 2.4vw, 30px);
+    }
+
+    .shell {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, auto) 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcff;
+    }
+
+    .tool-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .n-picker {
+      display: grid;
+      grid-template-columns: repeat(7, 36px);
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .n-btn {
+      width: 36px;
+      height: 34px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .n-btn.active {
+      background: var(--ink);
+      color: white;
+    }
+
+    .btn {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      padding: 8px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn.primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: minmax(330px, 570px) minmax(340px, 1fr);
+      gap: 18px;
+      padding: 18px;
+      align-items: start;
+    }
+
+    .board-card {
+      display: grid;
+      justify-items: center;
+      gap: 12px;
+    }
+
+    .board {
+      --n: 4;
+      display: grid;
+      grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--n), minmax(0, 1fr));
+      width: min(100%, 570px);
+      aspect-ratio: 1 / 1;
+      border: 2px solid var(--line-dark);
+      background: white;
+      overflow: hidden;
+    }
+
+    .cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+      aspect-ratio: 1 / 1;
+      border: 1px solid rgba(24, 34, 48, 0.13);
+      color: #0f172a;
+      font-size: clamp(20px, 4.6vw, 46px);
+      font-weight: 800;
+      transition: background-color 160ms ease, outline-color 160ms ease, transform 160ms ease;
+    }
+
+    .cell.light { background: var(--white-cell); }
+    .cell.dark { background: var(--gray-cell); }
+
+    .cell.queen {
+      background: var(--green-cell);
+      color: #073b1f;
+    }
+
+    .cell.trying {
+      outline: 4px solid var(--blue);
+      outline-offset: -4px;
+      z-index: 1;
+    }
+
+    .cell.reject {
+      background: var(--red-cell);
+      outline: 4px solid #be123c;
+      outline-offset: -4px;
+      z-index: 1;
+    }
+
+    .cell.backtracking {
+      background: var(--amber-soft);
+      color: #7c3e00;
+      animation: backtrackPulse 760ms ease-in-out infinite;
+      z-index: 2;
+    }
+
+    .cell.solution {
+      animation: solutionGlow 900ms ease-in-out infinite alternate;
+    }
+
+    .cell small {
+      position: absolute;
+      left: 5px;
+      top: 3px;
+      color: rgba(31, 41, 55, 0.56);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    @keyframes backtrackPulse {
+      0% { box-shadow: inset 0 0 0 0 rgba(180, 83, 9, 0.10), 0 0 0 0 rgba(180, 83, 9, 0.36); transform: scale(1); }
+      50% { box-shadow: inset 0 0 0 999px rgba(180, 83, 9, 0.16), 0 0 0 8px rgba(180, 83, 9, 0.14); transform: scale(0.92); }
+      100% { box-shadow: inset 0 0 0 0 rgba(180, 83, 9, 0.10), 0 0 0 0 rgba(180, 83, 9, 0); transform: scale(1); }
+    }
+
+    @keyframes solutionGlow {
+      from { box-shadow: inset 0 0 0 0 rgba(21, 128, 61, 0.10); }
+      to { box-shadow: inset 0 0 0 999px rgba(21, 128, 61, 0.12); }
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      word-break: keep-all;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 18px;
+      border: 1px solid rgba(17, 24, 39, 0.18);
+      border-radius: 4px;
+      flex: 0 0 auto;
+    }
+
+    .green { background: var(--green-cell); }
+    .red { background: var(--red-cell); }
+
+    .side {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .side-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+    }
+
+    .tab-btn {
+      min-height: 36px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .tab-btn.active {
+      background: var(--ink);
+      color: white;
+    }
+
+    .tab-pane { display: none; }
+
+    .tab-pane.active {
+      display: grid;
+      gap: 12px;
+    }
+
+    .message {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      background: #f3fbf9;
+      padding: 12px;
+      word-break: keep-all;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(80px, 1fr));
+      gap: 8px;
+    }
+
+    .metric {
+      min-height: 70px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      padding: 10px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 22px;
+    }
+
+    .array-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .array-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      overflow: hidden;
+    }
+
+    .array-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 10px;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 10px;
+    }
+
+    .chip {
+      display: inline-grid;
+      place-items: center;
+      min-width: 30px;
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .chip.on {
+      background: var(--primary-soft);
+      border-color: #8bd8cd;
+      color: #064e3b;
+      font-weight: 700;
+    }
+
+    .formula {
+      display: grid;
+      gap: 8px;
+    }
+
+    .formula div,
+    .diagonal-note {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      word-break: keep-all;
+    }
+
+    .diagonal-note {
+      background: white;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .tree-panel {
+      display: grid;
+      gap: 10px;
+    }
+
+    .tree-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .tree-head h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .tree-hint {
+      color: var(--muted);
+      font-size: 13px;
+      word-break: keep-all;
+    }
+
+    .tree-scroll {
+      overflow: auto;
+      min-height: 560px;
+      max-height: 660px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(#fbfcff 23px, transparent 24px),
+        linear-gradient(90deg, rgba(208, 215, 226, 0.36) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    .tree-svg {
+      display: block;
+      min-width: 100%;
+    }
+
+    .tree-edge {
+      stroke: #b8c0cc;
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .tree-edge.path {
+      stroke: #ef4444;
+      stroke-width: 3;
+    }
+
+    .tree-node circle {
+      fill: white;
+      stroke: #98a2b3;
+      stroke-width: 2;
+      filter: drop-shadow(0 4px 5px rgba(24, 34, 48, 0.16));
+    }
+
+    .tree-node text {
+      fill: var(--ink);
+      font-size: 12px;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      pointer-events: none;
+    }
+
+    .tree-node .mark {
+      fill: #667085;
+      font-size: 13px;
+    }
+
+    .tree-node.reject circle {
+      fill: #fff1f2;
+      stroke: #f43f5e;
+    }
+
+    .tree-node.place circle {
+      fill: #ecfdf3;
+      stroke: #16a34a;
+    }
+
+    .tree-node.solution circle {
+      fill: #78c28b;
+      stroke: #15803d;
+    }
+
+    .tree-node.current .halo {
+      fill: none;
+      stroke: rgba(239, 68, 68, 0.25);
+      stroke-width: 8;
+    }
+
+    .tree-node.current circle {
+      stroke: #ef4444;
+      stroke-width: 4;
+    }
+
+    .tree-node.root circle {
+      fill: #f8fafc;
+      stroke: #667085;
+    }
+
+    @media (max-width: 980px) {
+      .toolbar,
+      .stage { grid-template-columns: 1fr; }
+      .toolbar { align-items: stretch; }
+      .metrics { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+    }
+
+    @media (max-width: 560px) {
+      main { padding: 10px; }
+      .stage { padding: 12px; }
+      .n-picker { grid-template-columns: repeat(7, 1fr); }
+      .n-btn { width: auto; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .tree-head { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="shell">
+      <div class="toolbar">
+        <div class="tool-group">
+          <span class="label">보드 크기</span>
+          <div class="n-picker" id="nPicker" aria-label="n 선택"></div>
+        </div>
+
+        <div class="tool-group">
+          <button class="btn" id="resetQueen">처음</button>
+          <button class="btn" id="prevQueen">이전 단계</button>
+          <button class="btn primary" id="nextQueen">다음 단계</button>
+          <button class="btn" id="autoQueen">자동</button>
+        </div>
+
+        <div class="tool-group">
+          <span class="label">현재 n</span>
+          <strong id="nValue">4</strong>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="board-card">
+          <div class="board" id="board" aria-label="n-queen 체스판"></div>
+          <div class="legend" aria-label="체스판 색상 설명">
+            <div class="legend-item"><span class="swatch green"></span>퀸을 놓은 자리</div>
+            <div class="legend-item"><span class="swatch red"></span>퀸을 놓을 수 없는 자리</div>
+          </div>
+        </div>
+
+        <aside class="side">
+          <div class="side-tabs" role="tablist" aria-label="상세 보기">
+            <button class="tab-btn active" type="button" data-tab="explain" role="tab" aria-selected="true">설명</button>
+            <button class="tab-btn" type="button" data-tab="graph" role="tab" aria-selected="false">그래프</button>
+          </div>
+
+          <div class="tab-pane active" id="explainPane" role="tabpanel">
+            <div class="message" id="queenExplain">첫 번째 행에서 왼쪽 열부터 퀸을 놓을 수 있는지 검사합니다.</div>
+
+            <div class="metrics">
+              <div class="metric"><span>현재 행</span><strong id="rowMetric">1</strong></div>
+              <div class="metric"><span>시도</span><strong id="tryMetric">0</strong></div>
+              <div class="metric"><span>해</span><strong id="solutionMetric">0</strong></div>
+              <div class="metric"><span>백트랙</span><strong id="backMetric">0</strong></div>
+            </div>
+
+            <div class="array-grid">
+              <div class="array-row">
+                <div class="array-title"><strong>col</strong><span>같은 열</span></div>
+                <div class="chips" id="colArray"></div>
+              </div>
+              <div class="array-row">
+                <div class="array-title"><strong>inc = r + c</strong><span>/ 대각선</span></div>
+                <div class="chips" id="incArray"></div>
+              </div>
+              <div class="array-row">
+                <div class="array-title"><strong>dec = n + (r - c) + 1</strong><span>\ 대각선</span></div>
+                <div class="chips" id="decArray"></div>
+              </div>
+            </div>
+
+            <div class="formula" id="formulaBox"></div>
+            <div class="diagonal-note">/ 방향은 r+c가 같고, \ 방향은 r-c가 같습니다. r-c에 같은 수 n을 더해도 같은 대각선끼리는 여전히 같은 값이므로, 음수 인덱스만 피하면서 배열에 표시할 수 있습니다.</div>
+          </div>
+
+          <div class="tab-pane" id="graphPane" role="tabpanel">
+            <section class="tree-panel">
+              <div class="tree-head">
+                <h2>탐색 그래프</h2>
+                <div class="tree-hint">빨간 테두리는 현재 단계, x는 실패한 후보입니다.</div>
+              </div>
+              <div class="tree-scroll">
+                <svg class="tree-svg" id="treeSvg" role="img" aria-label="백트래킹 탐색 그래프"></svg>
+              </div>
+            </section>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      n: 4,
+      steps: [],
+      stepIndex: 0,
+      auto: null
+    };
+
+    function buildQueenSteps(n) {
+      const steps = [];
+      const board = [];
+      const col = Array(n + 1).fill(false);
+      const inc = Array(2 * n + 2).fill(false);
+      const dec = Array(2 * n + 2).fill(false);
+      const treeNodes = [{ id: 'root', parentId: null, row: 0, col: 0, label: 'Start', status: 'root', depth: 0 }];
+      const pathNodeIds = ['root'];
+      let nodeSerial = 0;
+      let tries = 0;
+      let backs = 0;
+      let answers = 0;
+
+      function cloneNodes() {
+        return treeNodes.map((node) => Object.assign({}, node));
+      }
+
+      function snapshot(extra) {
+        steps.push(Object.assign({
+          board: board.slice(),
+          col: col.slice(),
+          inc: inc.slice(),
+          dec: dec.slice(),
+          tries,
+          backs,
+          answers,
+          row: board.length + 1,
+          nodes: cloneNodes(),
+          pathNodeIds: pathNodeIds.slice()
+        }, extra));
+      }
+
+      snapshot({ type: 'start', activeNodeId: 'root', message: '첫 번째 행에서 왼쪽 열부터 검사를 시작합니다.' });
+
+      function solve(row) {
+        if (row > n) {
+          answers++;
+          const lastNode = treeNodes.find((node) => node.id === pathNodeIds[pathNodeIds.length - 1]);
+          if (lastNode) lastNode.status = 'solution';
+          snapshot({ type: 'solution', row, activeNodeId: lastNode ? lastNode.id : 'root', message: `해 ${answers} 발견: [${board.join(', ')}]` });
+          if (lastNode) lastNode.status = 'place';
+          return;
+        }
+
+        let placed = false;
+        for (let c = 1; c <= n; c++) {
+          tries++;
+          const incIndex = row + c;
+          const decIndex = n + (row - c) + 1;
+          const reasons = [];
+          const node = {
+            id: `node-${++nodeSerial}`,
+            parentId: pathNodeIds[pathNodeIds.length - 1],
+            row,
+            col: c,
+            label: `${row},${c}`,
+            status: 'try',
+            depth: row
+          };
+          treeNodes.push(node);
+
+          if (col[c]) reasons.push(`col[${c}]`);
+          if (inc[incIndex]) reasons.push(`inc[${incIndex}]`);
+          if (dec[decIndex]) reasons.push(`dec[${decIndex}]`);
+          if (reasons.length) node.status = 'reject';
+
+          snapshot({
+            type: reasons.length ? 'reject' : 'try',
+            row,
+            colTry: c,
+            incIndex,
+            decIndex,
+            activeNodeId: node.id,
+            message: reasons.length
+              ? `${row}행 ${c}열로 이동했지만 ${reasons.join(', ')}이 이미 체크되어 실패입니다.`
+              : `${row}행 ${c}열은 세 배열이 모두 비어 있어 퀸을 놓습니다.`
+          });
+
+          if (reasons.length) continue;
+
+          placed = true;
+          node.status = 'place';
+          pathNodeIds.push(node.id);
+          board.push(c);
+          col[c] = inc[incIndex] = dec[decIndex] = true;
+          snapshot({
+            type: 'place',
+            row,
+            colTry: c,
+            incIndex,
+            decIndex,
+            activeNodeId: node.id,
+            message: `체크: col[${c}], inc[${incIndex}], dec[${decIndex}]`
+          });
+
+          solve(row + 1);
+
+          board.pop();
+          pathNodeIds.pop();
+          col[c] = inc[incIndex] = dec[decIndex] = false;
+          backs++;
+          snapshot({
+            type: 'backtrack',
+            row,
+            colTry: c,
+            incIndex,
+            decIndex,
+            ghostQueen: { row, col: c },
+            activeNodeId: node.id,
+            message: `백트래킹: ${row}행 ${c}열의 퀸을 빼고 세 체크 배열의 흔적을 지웁니다.`
+          });
+        }
+
+        if (!placed) {
+          snapshot({ type: 'deadend', row, activeNodeId: pathNodeIds[pathNodeIds.length - 1], message: `${row}행에는 놓을 수 있는 열이 없어 이전 행으로 돌아갑니다.` });
+        }
+      }
+
+      solve(1);
+      snapshot({ type: 'done', row: n + 1, activeNodeId: 'root', message: `전체 탐색 완료: 총 ${answers}개의 해를 찾았습니다.` });
+      return steps;
+    }
+
+    function renderBoard(step) {
+      const board = document.getElementById('board');
+      board.style.setProperty('--n', state.n);
+      board.innerHTML = '';
+
+      for (let r = 1; r <= state.n; r++) {
+        for (let c = 1; c <= state.n; c++) {
+          const hasQueen = step.board[r - 1] === c;
+          const isGhost = step.ghostQueen && step.ghostQueen.row === r && step.ghostQueen.col === c;
+          const cell = document.createElement('div');
+          cell.className = `cell ${(r + c) % 2 ? 'dark' : 'light'}`;
+          if (hasQueen) cell.classList.add('queen');
+          if (isGhost) cell.classList.add('backtracking');
+          if (step.row === r && step.colTry === c && step.type === 'try') cell.classList.add('trying');
+          if (step.row === r && step.colTry === c && step.type === 'reject') cell.classList.add('reject');
+          if (step.type === 'solution' && hasQueen) cell.classList.add('solution');
+          cell.innerHTML = `<small>${r},${c}</small>${hasQueen || isGhost ? 'Q' : ''}`;
+          board.appendChild(cell);
+        }
+      }
+    }
+
+    function renderArray(target, arr, start, end) {
+      const box = document.getElementById(target);
+      box.innerHTML = '';
+      for (let i = start; i <= end; i++) {
+        const chip = document.createElement('span');
+        chip.className = `chip ${arr[i] ? 'on' : ''}`;
+        chip.textContent = i;
+        box.appendChild(chip);
+      }
+    }
+
+    function renderPicker() {
+      const picker = document.getElementById('nPicker');
+      picker.innerHTML = '';
+      for (let value = 3; value <= 9; value++) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `n-btn ${value === state.n ? 'active' : ''}`;
+        button.textContent = value;
+        button.setAttribute('aria-label', `n을 ${value}로 설정`);
+        button.addEventListener('click', () => {
+          state.n = value;
+          resetQueen();
+        });
+        picker.appendChild(button);
+      }
+    }
+
+    function createSvgElement(tag, attributes) {
+      const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      Object.entries(attributes || {}).forEach(([key, value]) => element.setAttribute(key, value));
+      return element;
+    }
+
+    function renderTree(step) {
+      const svg = document.getElementById('treeSvg');
+      const nodes = step.nodes || [];
+      const pathSet = new Set(step.pathNodeIds || []);
+      const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+      const children = new Map();
+      const positions = new Map();
+      const levelGap = 90;
+      const nodeGap = 88;
+      const marginX = 50;
+      const marginY = 42;
+      let nextLeafX = marginX;
+
+      nodes.forEach((node) => children.set(node.id, []));
+      nodes.forEach((node) => {
+        if (node.parentId && children.has(node.parentId)) children.get(node.parentId).push(node);
+      });
+
+      function layout(node) {
+        const childList = children.get(node.id) || [];
+        if (!childList.length) {
+          const x = nextLeafX;
+          nextLeafX += nodeGap;
+          positions.set(node.id, { x, y: marginY + node.depth * levelGap });
+          return x;
+        }
+
+        const childXs = childList.map(layout);
+        const x = (childXs[0] + childXs[childXs.length - 1]) / 2;
+        positions.set(node.id, { x, y: marginY + node.depth * levelGap });
+        return x;
+      }
+
+      layout(nodes[0]);
+      const positionList = Array.from(positions.values());
+      const minContentX = Math.min(...positionList.map((pos) => pos.x));
+      const maxContentX = Math.max(...positionList.map((pos) => pos.x));
+      const contentWidth = Math.max(1, maxContentX - minContentX);
+      const centeredWidth = Math.max(760, contentWidth + marginX * 2);
+      const shiftX = (centeredWidth - contentWidth) / 2 - minContentX;
+
+      positions.forEach((pos) => {
+        pos.x += shiftX;
+      });
+
+      const maxX = Math.max(...Array.from(positions.values()).map((pos) => pos.x), 760 - marginX);
+      const maxDepth = Math.max(...nodes.map((node) => node.depth), state.n);
+      const width = Math.max(760, maxX + marginX);
+      const height = marginY * 2 + (maxDepth + 1) * levelGap;
+
+      svg.setAttribute('width', width);
+      svg.setAttribute('height', height);
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.innerHTML = '';
+
+      nodes.forEach((node) => {
+        if (!node.parentId) return;
+        const parent = nodeMap.get(node.parentId);
+        const from = positions.get(node.parentId);
+        const to = positions.get(node.id);
+        if (!parent || !from || !to) return;
+        const isPath = pathSet.has(node.id) && pathSet.has(parent.id);
+        const midY = (from.y + to.y) / 2;
+        svg.appendChild(createSvgElement('path', {
+          d: `M ${from.x} ${from.y + 18} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${to.y - 18}`,
+          class: `tree-edge ${isPath ? 'path' : ''}`,
+          fill: 'none'
+        }));
+      });
+
+      nodes.forEach((node) => {
+        const position = positions.get(node.id);
+        if (!position) return;
+        const group = createSvgElement('g', {
+          class: `tree-node ${node.status} ${node.id === step.activeNodeId ? 'current' : ''}`,
+          transform: `translate(${position.x}, ${position.y})`
+        });
+        if (node.id === step.activeNodeId) group.appendChild(createSvgElement('circle', { cx: 0, cy: 0, r: 22, class: 'halo' }));
+        group.appendChild(createSvgElement('circle', { cx: 0, cy: 0, r: 18 }));
+        const label = createSvgElement('text', { x: 0, y: node.id === 'root' ? 0 : -1 });
+        label.textContent = node.label;
+        group.appendChild(label);
+        if (node.status === 'reject') {
+          const mark = createSvgElement('text', { x: 0, y: 32, class: 'mark' });
+          mark.textContent = 'x';
+          group.appendChild(mark);
+        }
+        svg.appendChild(group);
+      });
+    }
+
+    function renderQueen() {
+      const step = state.steps[state.stepIndex];
+      if (!step) return;
+
+      renderBoard(step);
+      renderArray('colArray', step.col, 1, state.n);
+      renderArray('incArray', step.inc, 2, state.n * 2);
+      renderArray('decArray', step.dec, 1, state.n * 2);
+      renderPicker();
+      renderTree(step);
+
+      document.getElementById('nValue').textContent = state.n;
+      document.getElementById('rowMetric').textContent = step.row > state.n ? '-' : step.row;
+      document.getElementById('tryMetric').textContent = step.tries;
+      document.getElementById('solutionMetric').textContent = step.answers;
+      document.getElementById('backMetric').textContent = step.backs;
+      document.getElementById('queenExplain').textContent = step.message;
+      document.getElementById('formulaBox').innerHTML = step.colTry
+        ? `<div>검사 위치: ${step.row}행 ${step.colTry}열</div><div>inc = ${step.row} + ${step.colTry} = ${step.incIndex}</div><div>dec = ${state.n} + (${step.row} - ${step.colTry}) + 1 = ${step.decIndex}</div>`
+        : '<div>퀸을 놓을 때마다 세 배열의 인덱스를 계산합니다.</div>';
+
+      document.getElementById('prevQueen').disabled = state.stepIndex === 0;
+      document.getElementById('nextQueen').disabled = state.stepIndex >= state.steps.length - 1;
+    }
+
+    function resetQueen() {
+      stopQueenAuto();
+      state.steps = buildQueenSteps(state.n);
+      state.stepIndex = 0;
+      renderQueen();
+    }
+
+    function prevQueen() {
+      stopQueenAuto();
+      if (state.stepIndex > 0) {
+        state.stepIndex--;
+        renderQueen();
+      }
+    }
+
+    function nextQueen() {
+      if (state.stepIndex < state.steps.length - 1) {
+        state.stepIndex++;
+        renderQueen();
+      } else {
+        stopQueenAuto();
+      }
+    }
+
+    function stopQueenAuto() {
+      if (state.auto) clearInterval(state.auto);
+      state.auto = null;
+      document.getElementById('autoQueen').textContent = '자동';
+    }
+
+    function toggleQueenAuto() {
+      if (state.auto) {
+        stopQueenAuto();
+        return;
+      }
+      document.getElementById('autoQueen').textContent = '정지';
+      state.auto = setInterval(nextQueen, 620);
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach((button) => {
+        const active = button.dataset.tab === tabName;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', String(active));
+      });
+      document.getElementById('explainPane').classList.toggle('active', tabName === 'explain');
+      document.getElementById('graphPane').classList.toggle('active', tabName === 'graph');
+    }
+
+    document.getElementById('resetQueen').addEventListener('click', resetQueen);
+    document.getElementById('prevQueen').addEventListener('click', prevQueen);
+    document.getElementById('nextQueen').addEventListener('click', nextQueen);
+    document.getElementById('autoQueen').addEventListener('click', toggleQueenAuto);
+    document.querySelectorAll('.tab-btn').forEach((button) => {
+      button.addEventListener('click', () => switchTab(button.dataset.tab));
+    });
+
+    resetQueen();
+  </script>
+</body>
+</html>
