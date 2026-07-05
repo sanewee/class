@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>두더지 굴 — DFS(재귀) vs BFS(큐) 구조 비교</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Pretendard","Malgun Gothic",-apple-system,sans-serif;
+    background:#f6f7f9; color:#1c2024; padding:24px 16px 48px; line-height:1.5; }
+  .wrap { max-width:960px; margin:0 auto; }
+  h1 { font-size:22px; font-weight:700; margin-bottom:4px; }
+  .sub { font-size:14px; color:#5f6368; margin-bottom:20px; }
+
+  .controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    background:#fff; border:1px solid #e3e5e8; border-radius:12px; padding:12px 16px; margin-bottom:16px; }
+  button { font-size:14px; font-weight:600; padding:8px 16px; border:1px solid #d0d3d7;
+    border-radius:8px; background:#fff; color:#1c2024; cursor:pointer; transition:.15s; }
+  button:hover { background:#f0f1f3; }
+  button.primary { background:#2f6fe0; border-color:#2f6fe0; color:#fff; }
+  button.primary:hover { background:#2560c9; }
+  .speed { display:flex; align-items:center; gap:8px; font-size:13px; color:#5f6368; margin-left:auto; }
+  input[type=range] { -webkit-appearance:none; appearance:none; width:130px; height:6px;
+    border-radius:999px; background:#dfe3e8; outline:none; cursor:pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none;
+    width:18px; height:18px; border-radius:50%; background:#2f6fe0; border:3px solid #fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.25); transition:transform .12s; }
+  input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.15); }
+  input[type=range]::-moz-range-thumb { width:18px; height:18px; border-radius:50%;
+    background:#2f6fe0; border:3px solid #fff; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.25); }
+  input[type=range]::-moz-range-track { height:6px; border-radius:999px; background:#dfe3e8; }
+
+  .hint { font-size:13px; color:#5f6368; margin-bottom:18px; }
+  .hint b { color:#2f6fe0; }
+
+  .panels { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:760px){ .panels{ grid-template-columns:1fr; } }
+
+  .panel { background:#fff; border:1px solid #e3e5e8; border-radius:12px; padding:16px; }
+  .panel h2 { font-size:17px; font-weight:700; margin-bottom:2px; display:flex; align-items:center; gap:8px; }
+  .tag { font-size:12px; font-weight:700; padding:2px 8px; border-radius:6px; }
+  .tag.dfs { background:#fdeee4; color:#c2410c; }
+  .tag.bfs { background:#e6f0fd; color:#1d4ed8; }
+  .panel .desc { font-size:12.5px; color:#6b7178; margin-bottom:12px; }
+
+  .grid { display:grid; gap:3px; margin:0 auto 14px; width:fit-content; }
+  .cell { width:34px; height:34px; border-radius:5px; display:flex; align-items:center;
+    justify-content:center; font-size:11.5px; font-weight:700; color:#9aa0a6;
+    background:#eceef0; transition:background .12s, transform .1s; }
+  .cell.land { background:#e5e7ea; }
+  .cell.hole { background:#cfd8e6; cursor:pointer; }
+  .cell.hole:hover { transform:scale(1.08); }
+  .cell.done { background:#eef1f4; color:#aab0b6; }
+  .cell.stack { background:#f2955a; color:#fff; }        /* DFS 호출 스택에 있는 칸 */
+  .cell.queue { background:#4b8ef0; color:#fff; }        /* BFS 큐에 있는 칸 */
+  .cell.current { outline:3px solid #111; outline-offset:-1px; }
+
+  .metric { display:flex; align-items:baseline; gap:8px; background:#f6f7f9;
+    border:1px solid #e8eaed; border-radius:8px; padding:10px 12px; }
+  .metric .k { font-size:12.5px; color:#5f6368; }
+  .metric .v { font-size:22px; font-weight:700; }
+  .metric.dfs .v { color:#c2410c; }
+  .metric.bfs .v { color:#1d4ed8; }
+  .flow { font-size:11.5px; color:#8b9096; margin-top:8px; }
+
+  pre { background:#1e2229; color:#e6e8eb; border-radius:8px; padding:12px; font-size:11.5px;
+    line-height:1.55; overflow-x:auto; margin-top:12px; font-family:"D2Coding",Consolas,monospace; }
+  pre .cm { color:#7f8896; } pre .kw { color:#7cc4ff; }
+
+  .legend { margin-top:20px; background:#fff; border:1px solid #e3e5e8; border-radius:12px;
+    padding:14px 16px; font-size:13px; color:#5f6368; }
+  .legend b { color:#1c2024; }
+  .legend .row + .row { margin-top:6px; }
+  .sw { display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:-2px; margin-right:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>두더지 굴 — DFS(재귀) vs BFS(큐) 구조 비교</h1>
+  <p class="sub">스택/큐에 담긴 칸을 격자에 직접 표시 → 구조의 모양 차이를 관찰</p>
+
+  <div class="controls">
+    <button class="primary" id="play">▶ 재생</button>
+    <button id="step">한 단계</button>
+    <button id="reset">처음으로</button>
+    <div class="speed">속도 <input type="range" id="speed" min="1" max="10" value="5"></div>
+  </div>
+
+  <p class="hint">굴 칸을 <b>클릭</b>하면 그 칸에서 시작. <span class="sw" style="background:#f2955a"></span>DFS 스택 / <span class="sw" style="background:#4b8ef0"></span>BFS 큐에 <b>지금 들어있는 칸</b>을 진하게 표시. 옅은 칸은 이미 처리 완료.</p>
+
+  <div class="panels">
+    <div class="panel">
+      <h2>DFS <span class="tag dfs">재귀 · 호출 스택</span></h2>
+      <p class="desc">진한 칸이 <b>가느다란 한 줄</b> → 깊이 파고든 경로</p>
+      <div class="grid" id="gridDFS"></div>
+      <div class="metric dfs"><span class="k">호출 스택 깊이</span><span class="v" id="mDFS">0</span></div>
+      <div class="flow">한 갈래로 끝까지 → 막히면 되돌아옴(백트랙). 스택이 길고 얇음.</div>
+      <pre><span class="kw">void</span> dfs(<span class="kw">int</span> a, <span class="kw">int</span> b, <span class="kw">int</span> c){
+  A[a][b] = c;                <span class="cm">// 방문 표시</span>
+  <span class="kw">for</span>(<span class="kw">int</span> i=0; i&lt;4; i++)
+    <span class="kw">if</span>(safe(a+dx[i],b+dy[i]) &amp;&amp; A[a+dx[i]][b+dy[i]]==1)
+      dfs(a+dx[i], b+dy[i], c); <span class="cm">// 재귀 호출</span>
+}</pre>
+    </div>
+
+    <div class="panel">
+      <h2>BFS <span class="tag bfs">반복문 · 큐</span></h2>
+      <p class="desc">진한 칸이 <b>넓은 띠</b> → 같은 거리의 탐색 앞면</p>
+      <div class="grid" id="gridBFS"></div>
+      <div class="metric bfs"><span class="k">큐 크기</span><span class="v" id="mBFS">0</span></div>
+      <div class="flow">가까운 칸부터 층층이 퍼짐. 큐가 넓게 벌어짐.</div>
+      <pre><span class="kw">void</span> bfs(<span class="kw">int</span> a, <span class="kw">int</span> b, <span class="kw">int</span> c){
+  queue&lt;VERTEX&gt; Q;
+  Q.push({a,b}), A[a][b]=c;    <span class="cm">// 시작칸 넣고 방문</span>
+  <span class="kw">while</span>(!Q.empty()){          <span class="cm">// 큐가 빌 때까지</span>
+    VERTEX cur = Q.front(); Q.pop();
+    <span class="kw">for</span>(<span class="kw">int</span> i=0; i&lt;4; i++)
+      <span class="kw">if</span>(safe(..) &amp;&amp; A[..]==1){
+        A[..]=c; Q.push({..}); <span class="cm">// 이웃 추가</span>
+      }
+  }
+}</pre>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="row"><b>관찰 포인트</b> — 진하게 표시된 칸의 <b>모양</b>을 봐. DFS는 늘 <b>가느다란 실선</b>, BFS는 <b>두툼한 띠</b>.</div>
+    <div class="row">이게 "깊게 vs 넓게"의 실체. 스택은 한 경로만 기억하고, 큐는 앞면 전체를 기억함.</div>
+  </div>
+</div>
+
+<script>
+const MAP = [
+  [0,1,1,0,1,0,0],
+  [0,1,1,0,1,0,1],
+  [1,1,1,0,1,0,1],
+  [0,0,0,0,1,1,1],
+  [0,1,0,0,0,0,0],
+  [0,1,1,1,1,1,0],
+  [0,1,1,1,0,0,0],
+];
+const R = MAP.length, C = MAP[0].length;
+const dx = [1,0,-1,0], dy = [0,1,0,-1];   // 아래,오른,위,왼 (교재 동일)
+const idx = (r,c) => r*C + c;
+
+let start = idx(0,1);        // (0,0)부터 훑어 처음 만나는 굴 (교재 solve 동일)
+let dfsSteps = [], bfsSteps = [];
+let cur = -1, playing = false, timer = null;
+
+function simulateDFS(){
+  const visited = {}, events = [], path = [];
+  const sr = Math.floor(start/C), sc = start%C;
+  function dfs(r,c){
+    visited[idx(r,c)] = true;
+    path.push(idx(r,c));
+    events.push({ node: idx(r,c), struct: path.slice() });   // 진입=방문, path=호출 스택
+    for(let i=0;i<4;i++){
+      const nr=r+dx[i], nc=c+dy[i];
+      if(nr>=0&&nr<R&&nc>=0&&nc<C && MAP[nr][nc]===1 && !visited[idx(nr,nc)]) dfs(nr,nc);
+    }
+    path.pop();   // 반환=백트랙
+  }
+  if(MAP[sr][sc]===1) dfs(sr,sc);
+  return events;
+}
+function simulateBFS(){
+  const visited = {}, container = [start], steps = [];
+  visited[start] = true;
+  while(container.length){
+    const node = container.shift();
+    const r = Math.floor(node/C), c = node%C;
+    for(let i=0;i<4;i++){
+      const nr=r+dx[i], nc=c+dy[i];
+      if(nr>=0&&nr<R&&nc>=0&&nc<C && MAP[nr][nc]===1 && !visited[idx(nr,nc)]){
+        visited[idx(nr,nc)] = true; container.push(idx(nr,nc));
+      }
+    }
+    steps.push({ node, struct: container.slice() });   // struct=큐 내용(앞면)
+  }
+  return steps;
+}
+
+function buildGrid(el){
+  el.style.gridTemplateColumns = 'repeat('+C+', 34px)';
+  el.innerHTML = '';
+  for(let r=0;r<R;r++) for(let c=0;c<C;c++){
+    const d = document.createElement('div');
+    d.className = 'cell ' + (MAP[r][c]===1 ? 'hole' : 'land');
+    d.dataset.id = idx(r,c);
+    if(MAP[r][c]===1) d.addEventListener('click', function(){ start = idx(r,c); rebuild(); });
+    el.appendChild(d);
+  }
+}
+
+function render(){
+  [['dfs',dfsSteps,'gridDFS','mDFS','stack'],
+   ['bfs',bfsSteps,'gridBFS','mBFS','queue']].forEach(function(row){
+    const type=row[0], steps=row[1], gid=row[2], mid=row[3], sc=row[4];
+    const grid = document.getElementById(gid);
+    grid.querySelectorAll('.cell').forEach(function(cell){
+      cell.classList.remove('done','stack','queue','current'); cell.textContent='';
+      if(cell.classList.contains('hole')) cell.style.background='';
+    });
+    if(cur<0){
+      const cell = grid.querySelector('[data-id="'+start+'"]');
+      if(cell){ cell.classList.add(sc); }
+      document.getElementById(mid).textContent = 0;
+      return;
+    }
+    const total = steps.length;
+    const structSet = new Set(steps[Math.min(cur,total-1)].struct);
+    // 처리 완료된 칸(옅게)
+    for(let k=0;k<=cur && k<total;k++){
+      const node = steps[k].node;
+      if(structSet.has(node)) continue;
+      const cell = grid.querySelector('[data-id="'+node+'"]');
+      if(cell) cell.classList.add('done');
+    }
+    // 지금 구조에 들어있는 칸(진하게)
+    structSet.forEach(function(node){
+      const cell = grid.querySelector('[data-id="'+node+'"]');
+      if(cell) cell.classList.add(sc);
+    });
+    // 현재 처리 칸
+    const curNode = steps[Math.min(cur,total-1)].node;
+    const curCell = grid.querySelector('[data-id="'+curNode+'"]');
+    if(curCell){ if(!structSet.has(curNode)) curCell.classList.add('done'); curCell.classList.add('current'); }
+    document.getElementById(mid).textContent = structSet.size;
+  });
+}
+
+function rebuild(){ stop(); dfsSteps=simulateDFS(); bfsSteps=simulateBFS(); cur=-1; render(); }
+function stepOnce(){
+  const max = Math.max(dfsSteps.length, bfsSteps.length);
+  if(cur < max-1){ cur++; render(); return true; } return false;
+}
+function play(){
+  if(playing){ stop(); return; }
+  playing=true; document.getElementById('play').textContent='⏸ 일시정지';
+  const delay = 700 - document.getElementById('speed').value*60;
+  timer = setInterval(function(){ if(!stepOnce()) stop(); }, delay);
+}
+function stop(){ playing=false; document.getElementById('play').textContent='▶ 재생'; if(timer){ clearInterval(timer); timer=null; } }
+
+document.getElementById('play').addEventListener('click', play);
+document.getElementById('step').addEventListener('click', function(){ stop(); stepOnce(); });
+document.getElementById('reset').addEventListener('click', function(){ stop(); cur=-1; render(); });
+document.getElementById('speed').addEventListener('input', function(){ if(playing){ stop(); play(); } });
+
+buildGrid(document.getElementById('gridDFS'));
+buildGrid(document.getElementById('gridBFS'));
+rebuild();
+</script>
+</body>
+</html>
