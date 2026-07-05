@@ -1,622 +1,217 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>n-queen 백트래킹 시뮬레이터</title>
-  <style>
-    :root {
-      --bg: #eef1f5;
-      --panel: #ffffff;
-      --panel-2: #f8fafc;
-      --ink: #182230;
-      --muted: #667085;
-      --line: #d0d7e2;
-      --line-dark: #344054;
-      --primary: #0f766e;
-      --primary-soft: #d9f3ef;
-      --blue: #2563eb;
-      --green-cell: #78c28b;
-      --red-cell: #ec6f8f;
-      --amber: #b45309;
-      --amber-soft: #fff2cc;
-      --white-cell: #ffffff;
-      --gray-cell: #d9dde3;
-      --shadow: 0 18px 46px rgba(24, 34, 48, 0.12);
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: Arial, "Noto Sans KR", sans-serif;
-      line-height: 1.45;
-    }
-
-    button { font: inherit; }
-
-    main {
-      width: min(1440px, 100%);
-      margin: 0 auto;
-      padding: clamp(14px, 2.4vw, 30px);
-    }
-
-    .shell {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .toolbar {
-      display: grid;
-      grid-template-columns: minmax(220px, auto) 1fr;
-      gap: 14px;
-      align-items: center;
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--line);
-      background: #fbfcff;
-    }
-
-    .tool-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .tool-group.controls {
-      justify-content: flex-end;
-    }
-
-    .label {
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .n-picker {
-      display: grid;
-      grid-template-columns: repeat(7, 36px);
-      gap: 4px;
-      padding: 4px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #ffffff;
-    }
-
-    .n-btn {
-      width: 36px;
-      height: 34px;
-      border: 0;
-      border-radius: 6px;
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      font-weight: 700;
-    }
-
-    .n-btn.active {
-      background: var(--ink);
-      color: white;
-    }
-
-    .btn {
-      min-height: 38px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: white;
-      color: var(--ink);
-      padding: 8px 12px;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .btn:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-
-    .btn.primary {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: white;
-    }
-
-    .status-strip {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-left: auto;
-      color: var(--ink);
-      font-size: 16px;
-      font-weight: 800;
-      text-align: right;
-    }
-
-    .status-strip span {
-      white-space: nowrap;
-    }
-
-    .status-strip b {
-      color: var(--primary);
-      font-size: 18px;
-    }
-
-    .stage {
-      display: grid;
-      grid-template-columns: minmax(300px, 500px) minmax(360px, 1fr);
-      gap: 18px;
-      padding: 18px;
-      align-items: start;
-    }
-
-    .board-card {
-      display: grid;
-      justify-items: center;
-      gap: 12px;
-    }
-
-    .board {
-      --n: 4;
-      display: grid;
-      grid-template-columns: repeat(var(--n), minmax(0, 1fr));
-      grid-template-rows: repeat(var(--n), minmax(0, 1fr));
-      width: min(100%, 500px);
-      aspect-ratio: 1 / 1;
-      border: 2px solid var(--line-dark);
-      background: white;
-      overflow: hidden;
-    }
-
-    .cell {
-      position: relative;
-      display: grid;
-      place-items: center;
-      min-width: 0;
-      min-height: 0;
-      aspect-ratio: 1 / 1;
-      border: 1px solid rgba(24, 34, 48, 0.13);
-      color: #0f172a;
-      font-size: clamp(20px, 4.6vw, 46px);
-      font-weight: 800;
-      transition: background-color 160ms ease, outline-color 160ms ease, transform 160ms ease;
-    }
-
-    .cell.light { background: var(--white-cell); }
-    .cell.dark { background: var(--gray-cell); }
-
-    .cell.queen {
-      background: var(--green-cell);
-      color: #073b1f;
-    }
-
-    .cell.trying {
-      outline: 4px solid var(--blue);
-      outline-offset: -4px;
-      z-index: 1;
-    }
-
-    .cell.reject {
-      background: var(--red-cell);
-      outline: 4px solid #be123c;
-      outline-offset: -4px;
-      z-index: 1;
-    }
-
-    .cell.backtracking {
-      background: var(--amber-soft);
-      color: #7c3e00;
-      animation: backtrackPulse 760ms ease-in-out infinite;
-      z-index: 2;
-    }
-
-    .cell.solution {
-      animation: solutionGlow 900ms ease-in-out infinite alternate;
-    }
-
-    .cell small {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(31, 41, 55, 0.56);
-      font-size: clamp(18px, calc(174px / var(--n)), 43px);
-      font-weight: 800;
-      line-height: 1;
-      z-index: 0;
-      pointer-events: none;
-    }
-
-    .queen-symbol {
-      position: absolute;
-      right: 8px;
-      bottom: 5px;
-      z-index: 1;
-      font-size: clamp(18px, calc(120px / var(--n)), 30px);
-      line-height: 1;
-      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
-    }
-
-    @keyframes backtrackPulse {
-      0% { box-shadow: inset 0 0 0 0 rgba(180, 83, 9, 0.10), 0 0 0 0 rgba(180, 83, 9, 0.36); transform: scale(1); }
-      50% { box-shadow: inset 0 0 0 999px rgba(180, 83, 9, 0.16), 0 0 0 8px rgba(180, 83, 9, 0.14); transform: scale(0.92); }
-      100% { box-shadow: inset 0 0 0 0 rgba(180, 83, 9, 0.10), 0 0 0 0 rgba(180, 83, 9, 0); transform: scale(1); }
-    }
-
-    @keyframes solutionGlow {
-      from { box-shadow: inset 0 0 0 0 rgba(21, 128, 61, 0.10); }
-      to { box-shadow: inset 0 0 0 999px rgba(21, 128, 61, 0.12); }
-    }
-
-    .legend {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 8px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fff;
-      word-break: keep-all;
-    }
-
-    .swatch {
-      width: 18px;
-      height: 18px;
-      border: 1px solid rgba(17, 24, 39, 0.18);
-      border-radius: 4px;
-      flex: 0 0 auto;
-    }
-
-    .green { background: var(--green-cell); }
-    .red { background: var(--red-cell); }
-
-    .side {
-      display: grid;
-      gap: 12px;
-      align-content: start;
-    }
-
-    .side-tabs {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4px;
-      padding: 4px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel-2);
-    }
-
-    .tab-btn {
-      min-height: 36px;
-      border: 0;
-      border-radius: 6px;
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: 700;
-    }
-
-    .tab-btn.active {
-      background: var(--ink);
-      color: white;
-    }
-
-    .tab-pane { display: none; }
-
-    .tab-pane.active {
-      display: grid;
-      gap: 12px;
-    }
-
-    .message {
-      min-height: 58px;
-      display: flex;
-      align-items: center;
-      border-left: 4px solid var(--primary);
-      border-radius: 0 8px 8px 0;
-      background: #f3fbf9;
-      padding: 14px;
-      font-size: 18px;
-      font-weight: 700;
-      word-break: keep-all;
-    }
-
-    .array-grid {
-      display: grid;
-      gap: 10px;
-    }
-
-    .array-row {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: white;
-      overflow: hidden;
-    }
-
-    .array-title {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 9px 10px;
-      background: var(--panel-2);
-      border-bottom: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 16px;
-    }
-
-    .chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      padding: 10px;
-    }
-
-    .chip {
-      display: inline-grid;
-      place-items: center;
-      min-width: 30px;
-      height: 30px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: white;
-      color: var(--muted);
-      font-size: 15px;
-      font-weight: 700;
-    }
-
-    .chip.on {
-      background: var(--primary-soft);
-      border-color: #8bd8cd;
-      color: #064e3b;
-      font-weight: 700;
-    }
-
-    .formula {
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: white;
-      font-size: 17px;
-      line-height: 1.7;
-      word-break: keep-all;
-    }
-
-    .formula strong {
-      color: var(--ink);
-    }
-
-    .formula code {
-      color: var(--primary);
-      font-size: 0.95em;
-      font-weight: 800;
-    }
-
-    .tree-panel {
-      display: grid;
-      gap: 10px;
-    }
-
-    .tree-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .tree-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-
-    .zoom-btn {
-      width: 34px;
-      height: 32px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: white;
-      color: var(--ink);
-      cursor: pointer;
-      font-size: 18px;
-      font-weight: 800;
-      line-height: 1;
-    }
-
-    .zoom-btn.wide {
-      width: auto;
-      padding: 0 10px;
-      font-size: 13px;
-    }
-
-    .tree-head h2 {
-      margin: 0;
-      font-size: 16px;
-    }
-
-    .tree-hint {
-      color: var(--muted);
-      font-size: 13px;
-      word-break: keep-all;
-    }
-
-    .tree-scroll {
-      overflow: hidden;
-      min-height: 560px;
-      max-height: 660px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      cursor: grab;
-      user-select: none;
-      touch-action: none;
-      background:
-        linear-gradient(#fbfcff 23px, transparent 24px),
-        linear-gradient(90deg, rgba(208, 215, 226, 0.36) 1px, transparent 1px);
-      background-size: 24px 24px;
-    }
-
-    .tree-scroll.dragging {
-      cursor: grabbing;
-    }
-
-    .tree-svg {
-      display: block;
-      min-width: 100%;
-      width: 100%;
-      height: 560px;
-    }
-
-    .tree-edge {
-      stroke: #b8c0cc;
-      stroke-width: 2;
-      stroke-linecap: round;
-    }
-
-    .tree-edge.path {
-      stroke: #ef4444;
-      stroke-width: 3;
-    }
-
-    .tree-node circle {
-      fill: white;
-      stroke: #98a2b3;
-      stroke-width: 2;
-      filter: drop-shadow(0 4px 5px rgba(24, 34, 48, 0.16));
-    }
-
-    .tree-node text {
-      fill: var(--ink);
-      font-size: 12px;
-      text-anchor: middle;
-      dominant-baseline: middle;
-      pointer-events: none;
-    }
-
-    .tree-node .mark {
-      fill: #667085;
-      font-size: 13px;
-    }
-
-    .tree-node.reject circle {
-      fill: #fff1f2;
-      stroke: #f43f5e;
-    }
-
-    .tree-node.place circle {
-      fill: #ecfdf3;
-      stroke: #16a34a;
-    }
-
-    .tree-node.solution circle {
-      fill: #78c28b;
-      stroke: #15803d;
-    }
-
-    .tree-node.current .halo {
-      fill: none;
-      stroke: rgba(239, 68, 68, 0.25);
-      stroke-width: 8;
-    }
-
-    .tree-node.current circle {
-      stroke: #ef4444;
-      stroke-width: 4;
-    }
-
-    .tree-node.root circle {
-      fill: #f8fafc;
-      stroke: #667085;
-    }
-
-    @media (max-width: 980px) {
-      .toolbar,
-      .stage { grid-template-columns: 1fr; }
-      .toolbar { align-items: stretch; }
-    }
-
-    @media (max-width: 560px) {
-      main { padding: 10px; }
-      .stage { padding: 12px; }
-      .n-picker { grid-template-columns: repeat(7, 1fr); }
-      .n-btn { width: auto; }
-      .tree-head { align-items: flex-start; flex-direction: column; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>n-queen 백트래킹 시뮬레이터</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.min.css">
+<style>
+  :root{
+    --bg:#e7ebef; --panel:#ffffff; --panel-2:#f4f6f9; --ink:#16202e; --ink-soft:#2b3a4f;
+    --muted:#6b7788; --line:#dde3ea; --line-2:#c9d2dc;
+    --gold:#c99a2e; --gold-2:#a97c1c; --gold-soft:#f7edd3;
+    --board-l:#ffffff; --board-d:#d3d9e1;
+    --blue:#2f6fb0; --green:#4f8a5b; --rose:#cf5a63; --rose-soft:#fbe5e7; --violet:#a4589a; --amber:#cf8a3a;
+    --font:"Pretendard",-apple-system,sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; min-height:100vh; background:
+      radial-gradient(1200px 500px at 15% -10%, #eef1f5 0%, transparent 60%), var(--bg);
+    color:var(--ink); font-family:var(--font); line-height:1.5; }
+  button{ font:inherit; }
+  main{ width:min(1400px,100%); margin:0 auto; padding:clamp(14px,2.4vw,32px); }
+  .shell{ background:var(--panel); border:1px solid var(--line); border-radius:20px;
+    box-shadow:0 30px 70px rgba(22,32,46,.14); overflow:hidden; }
+
+  .hero{ display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+    padding:20px 24px; background:linear-gradient(180deg,#182333,#111a27); color:#eef2f7; }
+  .eyebrow{ font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:#9fb0c6; }
+  .hero h1{ margin:3px 0 0; font-weight:700; font-size:26px; letter-spacing:-.01em; display:flex; align-items:center; gap:11px; }
+  .hero h1 .glyph{ color:var(--gold); font-size:28px; line-height:1; }
+  .hero h1 .tail{ font-size:15px; font-weight:500; color:#aebccf; align-self:flex-end; padding-bottom:3px; }
+
+  .npick{ display:flex; align-items:center; gap:10px; }
+  .npick-label{ font-size:11px; font-weight:700; letter-spacing:.12em; color:#9fb0c6; text-transform:uppercase; }
+  .n-picker{ display:flex; gap:3px; padding:4px; border-radius:12px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); }
+  .n-btn{ width:34px; height:34px; border:0; border-radius:9px; background:transparent; color:#c2cede;
+    font-weight:700; font-size:14px; cursor:pointer; transition:.15s; }
+  .n-btn:hover{ background:rgba(255,255,255,.12); color:#fff; }
+  .n-btn.active{ background:#fff; color:var(--ink); }
+
+  .toolbar{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    padding:14px 24px; border-bottom:1px solid var(--line); background:var(--panel-2); }
+  .transport{ display:flex; gap:8px; flex-wrap:wrap; }
+  .btn{ min-height:40px; padding:0 16px; border:1px solid var(--line-2); border-radius:11px; background:#fff;
+    color:var(--ink-soft); font-weight:600; font-size:14px; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:6px; }
+  .btn:hover:not(:disabled){ border-color:var(--ink); background:#fbfcfd; transform:translateY(-1px); }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .btn.primary{ background:var(--ink); border-color:var(--ink); color:#fff; }
+  .btn.primary:hover:not(:disabled){ background:#0d1520; }
+  .btn.gold{ background:var(--gold); border-color:var(--gold-2); color:#231a06; }
+
+  .metrics{ display:flex; gap:10px; flex-wrap:wrap; }
+  .stat{ min-width:78px; padding:7px 14px; border-radius:12px; background:#fff; border:1px solid var(--line);
+    display:flex; flex-direction:column; gap:1px; }
+  .stat .k{ font-size:11px; color:var(--muted); font-weight:600; }
+  .stat .v{ font-size:20px; font-weight:700; color:var(--ink); line-height:1.1; font-variant-numeric:tabular-nums; }
+  .stat.accent .v{ color:var(--gold-2); }
+
+  .stage{ display:grid; grid-template-columns:minmax(320px,540px) minmax(360px,1fr); gap:24px; padding:24px; align-items:start; }
+
+  .board-card{ display:grid; gap:14px; justify-items:center; }
+  .board-frame{ display:grid; grid-template-columns:22px 1fr; grid-template-rows:22px 1fr; gap:6px; width:min(100%,520px); }
+  .files{ grid-column:2; grid-row:1; display:grid; }
+  .ranks{ grid-column:1; grid-row:2; display:grid; }
+  .files span,.ranks span{ display:grid; place-items:center; font-size:12px; font-weight:700; color:var(--muted); }
+  .board{ grid-column:2; grid-row:2; --n:4; display:grid;
+    grid-template-columns:repeat(var(--n),1fr); grid-template-rows:repeat(var(--n),1fr);
+    aspect-ratio:1/1; border:2px solid var(--ink); overflow:hidden; box-shadow:0 12px 28px rgba(22,32,46,.16); }
+
+  .cell{ position:relative; display:grid; place-items:center; aspect-ratio:1/1; min-width:0; min-height:0;
+    transition:background-color .18s, box-shadow .18s, transform .18s; }
+  .cell.light{ background:var(--board-l); }
+  .cell.dark{ background:var(--board-d); }
+
+  .coord{ position:absolute; inset:0; display:grid; place-items:center;
+    font-size:clamp(20px,5vw,44px); font-weight:700; color:rgba(22,32,46,.16); z-index:0; pointer-events:none; }
+
+  .queen{ position:relative; z-index:3; width:60%; height:60%; color:var(--gold); animation:pop .25s ease; }
+  .queen svg{ width:100%; height:100%; display:block; fill:currentColor; filter:drop-shadow(0 2px 3px rgba(80,56,8,.35)); }
+  .cell.ghost .queen{ width:72%; height:72%; border:2px dashed var(--amber); border-radius:50%;
+    display:grid; place-items:center; color:var(--amber); opacity:.75; }
+  .cell.ghost .queen svg{ width:66%; height:66%; }
+
+  .cell.trying,.cell.reject{ z-index:2; }
+  .cell.trying::before,.cell.reject::before{
+    content:''; position:absolute; inset:5px; border-radius:4px; z-index:2; pointer-events:none; }
+  .cell.trying::before{ border:3px solid var(--ink); }
+  .cell.reject::before{ border:3px solid var(--rose); }
+  .cell.reject::after{ content:"✕"; position:absolute; font-size:clamp(22px,4.4vw,44px); font-weight:700; color:var(--rose); z-index:4; }
+  .cell.solution .queen{ color:var(--gold-2); animation:glow 1s ease-in-out infinite alternate; }
+
+  @keyframes pop{ from{ transform:scale(.4); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  @keyframes pulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(.92); } }
+  @keyframes glow{ from{ transform:scale(1); } to{ transform:scale(1.14); } }
+  @media (prefers-reduced-motion:reduce){ .cell,.queen{ animation:none!important; } }
+
+  .side{ display:grid; gap:14px; align-content:start; }
+  .side-tabs{ display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; border-radius:12px; background:var(--panel-2); border:1px solid var(--line); }
+  .tab-btn{ min-height:40px; border:0; border-radius:9px; background:transparent; color:var(--muted); font-weight:700; font-size:14px; cursor:pointer; transition:.15s; }
+  .tab-btn:hover{ color:var(--ink); }
+  .tab-btn.active{ background:var(--ink); color:#fff; }
+  .tab-pane{ display:none; }
+  .tab-pane.active{ display:grid; gap:14px; }
+
+  .message{ display:flex; align-items:center; min-height:64px; padding:16px 18px; border-radius:14px;
+    background:#fff; border:1px solid var(--line); font-size:16px; font-weight:600; color:var(--ink); word-break:keep-all; }
+
+  .arrays{ display:grid; gap:10px; }
+  .array-row{ border:1px solid var(--line); border-radius:12px; background:#fff; overflow:hidden; }
+  .array-title{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 12px; background:var(--panel-2); border-bottom:1px solid var(--line); }
+  .array-title .name{ display:flex; align-items:center; gap:7px; font-size:14px; font-weight:700; color:var(--ink); }
+  .array-title .sub{ font-size:12px; color:var(--muted); }
+  .array-title .tick{ width:10px; height:10px; border-radius:3px; }
+  .t-b{ background:var(--blue); } .t-g{ background:var(--green); } .t-v{ background:var(--violet); }
+  .chips{ display:flex; flex-wrap:wrap; gap:5px; padding:11px; }
+  .chip{ display:inline-grid; place-items:center; min-width:32px; height:32px; padding:0 6px; border:1px solid var(--line-2); border-radius:8px; background:#fff; color:var(--muted); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; transition:.15s; }
+  .chip.on-b{ background:#e2eefa; border-color:#a9cdee; color:#1d4a78; }
+  .chip.on-g{ background:#e3f2e6; border-color:#a6d4ae; color:#2f5f39; }
+  .chip.on-v{ background:#f3e5f2; border-color:#dcaad6; color:#743a6d; }
+
+  .formula{ padding:16px 18px; border:1px solid var(--line); border-radius:14px; background:#fff; font-size:15px; line-height:1.75; color:var(--ink-soft); word-break:keep-all; }
+  .formula strong{ color:var(--ink); }
+  .formula code{ font-size:.92em; font-weight:700; color:var(--gold-2); background:var(--gold-soft); padding:1px 6px; border-radius:5px; }
+
+  .tree-panel{ display:grid; gap:12px; }
+  .tree-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .tree-head h2{ margin:0; font-weight:700; font-size:17px; }
+  .tree-actions{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .tree-hint{ font-size:11px; color:var(--muted); }
+  .zoom-btn{ width:36px; height:34px; border:1px solid var(--line-2); border-radius:9px; background:#fff; color:var(--ink); font-size:18px; font-weight:700; line-height:1; cursor:pointer; transition:.15s; }
+  .zoom-btn:hover{ border-color:var(--ink); background:#fbfcfd; }
+  .zoom-btn.wide{ width:auto; padding:0 12px; font-size:12px; font-weight:600; }
+  .tree-scroll{ overflow:hidden; height:min(56vh,520px); border:1px solid var(--line); border-radius:14px;
+    cursor:grab; user-select:none; touch-action:none;
+    background:radial-gradient(circle at 1px 1px, rgba(107,119,136,.16) 1px, transparent 1.4px); background-size:22px 22px; background-color:#fbfcfd; }
+  .tree-scroll.dragging{ cursor:grabbing; }
+  .tree-svg{ display:block; width:100%; height:100%; }
+
+  .tree-edge{ stroke:#c4cdd8; stroke-width:2; stroke-linecap:round; }
+  .tree-edge.path{ stroke:var(--gold); stroke-width:3.4; }
+  .tree-node circle{ fill:#fff; stroke:#9aa6b4; stroke-width:2; filter:drop-shadow(0 3px 4px rgba(22,32,46,.14)); }
+  .tree-node text{ fill:var(--ink); font-size:11px; font-weight:700; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+  .tree-node .mark{ fill:var(--rose); font-size:13px; font-weight:700; }
+  .tree-node.reject circle{ fill:var(--rose-soft); stroke:var(--rose); }
+  .tree-node.place circle{ fill:#e3f2e6; stroke:var(--green); }
+  .tree-node.solution circle{ fill:var(--gold); stroke:var(--gold-2); }
+  .tree-node.root circle{ fill:#eef2f7; stroke:var(--muted); }
+  .tree-node.current .halo{ fill:none; stroke:rgba(201,154,46,.3); stroke-width:9; }
+  .tree-node.current circle{ stroke:var(--gold); stroke-width:4; }
+
+  @media (max-width:980px){ .toolbar,.stage{ grid-template-columns:1fr; } .toolbar{ flex-direction:column; align-items:stretch; } .metrics{ justify-content:space-between; } .tree-scroll{ height:min(60vh,480px); } }
+  @media (max-width:560px){ main{ padding:10px; } .stage{ padding:14px; } .hero{ padding:16px; } .tree-head{ flex-direction:column; align-items:flex-start; } }
+</style>
 </head>
 <body>
   <main>
     <section class="shell">
-      <div class="toolbar">
-        <div class="tool-group">
-          <span class="label">보드 크기</span>
+      <header class="hero">
+        <div class="brand">
+          <span class="eyebrow">탐색 기반 알고리즘 · 백트래킹</span>
+          <h1><span class="glyph">♛</span> n-queen <span class="tail">시뮬레이터</span></h1>
+        </div>
+        <div class="npick">
+          <span class="npick-label">Board n</span>
           <div class="n-picker" id="nPicker" aria-label="n 선택"></div>
         </div>
+      </header>
 
-        <div class="tool-group controls">
-          <button class="btn" id="resetQueen">처음</button>
-          <button class="btn" id="prevQueen">이전 단계</button>
-          <button class="btn primary" id="nextQueen">다음 단계</button>
-          <button class="btn" id="autoQueen">자동</button>
-          <div class="status-strip" aria-label="탐색 상태">
-            <span>현재 행 <b id="rowMetric">1</b></span>
-            <span>시도 <b id="tryMetric">0</b></span>
-            <span>해 <b id="solutionMetric">0</b></span>
-            <span>백트랙 <b id="backMetric">0</b></span>
-          </div>
+      <div class="toolbar">
+        <div class="transport">
+          <button class="btn" id="resetQueen">↺ 처음</button>
+          <button class="btn" id="prevQueen">‹ 이전</button>
+          <button class="btn primary" id="nextQueen">다음 ›</button>
+          <button class="btn" id="autoQueen">▶ 자동</button>
+        </div>
+        <div class="metrics" aria-label="탐색 상태">
+          <div class="stat"><span class="k">현재 행</span><span class="v" id="rowMetric">1</span></div>
+          <div class="stat"><span class="k">시도</span><span class="v" id="tryMetric">0</span></div>
+          <div class="stat accent"><span class="k">해</span><span class="v" id="solutionMetric">0</span></div>
+          <div class="stat"><span class="k">백트랙</span><span class="v" id="backMetric">0</span></div>
         </div>
       </div>
 
       <div class="stage">
         <div class="board-card">
-          <div class="board" id="board" aria-label="n-queen 체스판"></div>
-          <div class="legend" aria-label="체스판 색상 설명">
-            <div class="legend-item"><span class="swatch green"></span>퀸을 놓은 자리</div>
-            <div class="legend-item"><span class="swatch red"></span>퀸을 놓을 수 없는 자리</div>
+          <div class="board-frame">
+            <div class="files" id="files"></div>
+            <div class="ranks" id="ranks"></div>
+            <div class="board" id="board" aria-label="n-queen 체스판"></div>
           </div>
         </div>
 
         <aside class="side">
-          <div class="side-tabs" role="tablist" aria-label="상세 보기">
+          <div class="side-tabs" role="tablist">
             <button class="tab-btn active" type="button" data-tab="explain" role="tab" aria-selected="true">설명</button>
-            <button class="tab-btn" type="button" data-tab="graph" role="tab" aria-selected="false">그래프</button>
+            <button class="tab-btn" type="button" data-tab="graph" role="tab" aria-selected="false">탐색 그래프</button>
           </div>
 
           <div class="tab-pane active" id="explainPane" role="tabpanel">
-            <div class="message" id="queenExplain">첫 번째 행에서 왼쪽 열부터 퀸을 놓을 수 있는지 검사합니다.</div>
-
-            <div class="array-grid">
+            <div class="message" id="queenExplain">첫 번째 행에서 왼쪽 열부터 퀸을 놓을 수 있는지 검사</div>
+            <div class="arrays">
               <div class="array-row">
-                <div class="array-title"><strong>col</strong><span>같은 열</span></div>
+                <div class="array-title"><span class="name">col</span><span class="sub">같은 열</span></div>
                 <div class="chips" id="colArray"></div>
               </div>
               <div class="array-row">
-                <div class="array-title"><strong>inc = r + c</strong><span>/ 대각선</span></div>
+                <div class="array-title"><span class="name">inc = r + c</span><span class="sub">↗ 대각선</span></div>
                 <div class="chips" id="incArray"></div>
               </div>
               <div class="array-row">
-                <div class="array-title"><strong>dec = n + (r - c) + 1</strong><span>\ 대각선</span></div>
+                <div class="array-title"><span class="name">dec = n + (r − c) + 1</span><span class="sub">↘ 대각선</span></div>
                 <div class="chips" id="decArray"></div>
               </div>
             </div>
-
             <div class="formula" id="formulaBox"></div>
           </div>
 
@@ -624,10 +219,10 @@
             <section class="tree-panel">
               <div class="tree-head">
                 <h2>탐색 그래프</h2>
-                <div class="tree-actions" aria-label="그래프 보기 조절">
-                  <div class="tree-hint">드래그로 이동, +/-로 확대 축소</div>
-                  <button class="zoom-btn" type="button" id="zoomOutGraph" aria-label="그래프 축소">-</button>
-                  <button class="zoom-btn" type="button" id="zoomInGraph" aria-label="그래프 확대">+</button>
+                <div class="tree-actions">
+                  <span class="tree-hint">드래그 이동 · ± 확대축소</span>
+                  <button class="zoom-btn" type="button" id="zoomOutGraph" aria-label="축소">−</button>
+                  <button class="zoom-btn" type="button" id="zoomInGraph" aria-label="확대">+</button>
                   <button class="zoom-btn wide" type="button" id="fitGraph">맞춤</button>
                 </div>
               </div>
@@ -641,460 +236,217 @@
     </section>
   </main>
 
-  <script>
-    const state = {
-      n: 4,
-      steps: [],
-      stepIndex: 0,
-      auto: null,
-      graph: {
-        scale: 1,
-        x: 0,
-        y: 22,
-        initialized: false,
-        dragging: false,
-        dragStartX: 0,
-        dragStartY: 0,
-        startX: 0,
-        startY: 0,
-        worldWidth: 760,
-        worldHeight: 560
-      }
-    };
+<script>
+  const state = {
+    n:4, steps:[], stepIndex:0, auto:null,
+    graph:{ scale:1,x:0,y:22,initialized:false,dragging:false,dragStartX:0,dragStartY:0,startX:0,startY:0,worldWidth:760,worldHeight:560 }
+  };
 
-    function buildQueenSteps(n) {
-      const steps = [];
-      const board = [];
-      const col = Array(n + 1).fill(false);
-      const inc = Array(2 * n + 2).fill(false);
-      const dec = Array(2 * n + 2).fill(false);
-      const treeNodes = [{ id: 'root', parentId: null, row: 0, col: 0, label: 'Start', status: 'root', depth: 0 }];
-      const pathNodeIds = ['root'];
-      let nodeSerial = 0;
-      let tries = 0;
-      let backs = 0;
-      let answers = 0;
-
-      function cloneNodes() {
-        return treeNodes.map((node) => Object.assign({}, node));
-      }
-
-      function snapshot(extra) {
-        steps.push(Object.assign({
-          board: board.slice(),
-          col: col.slice(),
-          inc: inc.slice(),
-          dec: dec.slice(),
-          tries,
-          backs,
-          answers,
-          row: board.length + 1,
-          nodes: cloneNodes(),
-          pathNodeIds: pathNodeIds.slice()
-        }, extra));
-      }
-
-      snapshot({ type: 'start', activeNodeId: 'root', message: '첫 번째 행에서 왼쪽 열부터 검사를 시작합니다.' });
-
-      function solve(row) {
-        if (row > n) {
-          answers++;
-          const lastNode = treeNodes.find((node) => node.id === pathNodeIds[pathNodeIds.length - 1]);
-          if (lastNode) lastNode.status = 'solution';
-          snapshot({ type: 'solution', row, activeNodeId: lastNode ? lastNode.id : 'root', message: `해 ${answers} 발견: [${board.join(', ')}]` });
-          if (lastNode) lastNode.status = 'place';
-          return;
-        }
-
-        let placed = false;
-        for (let c = 1; c <= n; c++) {
-          tries++;
-          const incIndex = row + c;
-          const decIndex = n + (row - c) + 1;
-          const reasons = [];
-          const node = {
-            id: `node-${++nodeSerial}`,
-            parentId: pathNodeIds[pathNodeIds.length - 1],
-            row,
-            col: c,
-            label: `${row},${c}`,
-            status: 'try',
-            depth: row
-          };
-          treeNodes.push(node);
-
-          if (col[c]) reasons.push(`col[${c}]`);
-          if (inc[incIndex]) reasons.push(`inc[${incIndex}]`);
-          if (dec[decIndex]) reasons.push(`dec[${decIndex}]`);
-          if (reasons.length) node.status = 'reject';
-
-          snapshot({
-            type: reasons.length ? 'reject' : 'try',
-            row,
-            colTry: c,
-            incIndex,
-            decIndex,
-            activeNodeId: node.id,
-            message: reasons.length
-              ? `${row}행 ${c}열로 이동했지만 ${reasons.join(', ')}이 이미 체크되어 실패입니다.`
-              : `${row}행 ${c}열은 세 배열이 모두 비어 있어 퀸을 놓습니다.`
-          });
-
-          if (reasons.length) continue;
-
-          placed = true;
-          node.status = 'place';
-          pathNodeIds.push(node.id);
-          board.push(c);
-          col[c] = inc[incIndex] = dec[decIndex] = true;
-          snapshot({
-            type: 'place',
-            row,
-            colTry: c,
-            incIndex,
-            decIndex,
-            activeNodeId: node.id,
-            message: `체크: col[${c}], inc[${incIndex}], dec[${decIndex}]`
-          });
-
-          solve(row + 1);
-
-          board.pop();
-          pathNodeIds.pop();
-          col[c] = inc[incIndex] = dec[decIndex] = false;
-          backs++;
-          snapshot({
-            type: 'backtrack',
-            row,
-            colTry: c,
-            incIndex,
-            decIndex,
-            ghostQueen: { row, col: c },
-            activeNodeId: node.id,
-            message: `백트래킹: ${row}행 ${c}열의 퀸을 빼고 세 체크 배열의 흔적을 지웁니다.`
-          });
-        }
-
-        if (!placed) {
-          snapshot({ type: 'deadend', row, activeNodeId: pathNodeIds[pathNodeIds.length - 1], message: `${row}행에는 놓을 수 있는 열이 없어 이전 행으로 돌아갑니다.` });
-        }
-      }
-
-      solve(1);
-      snapshot({ type: 'done', row: n + 1, activeNodeId: 'root', message: `전체 탐색 완료: 총 ${answers}개의 해를 찾았습니다.` });
-      return steps;
-    }
-
-    function renderBoard(step) {
-      const board = document.getElementById('board');
-      board.style.setProperty('--n', state.n);
-      board.innerHTML = '';
-
-      for (let r = 1; r <= state.n; r++) {
-        for (let c = 1; c <= state.n; c++) {
-          const hasQueen = step.board[r - 1] === c;
-          const isGhost = step.ghostQueen && step.ghostQueen.row === r && step.ghostQueen.col === c;
-          const cell = document.createElement('div');
-          cell.className = `cell ${(r + c) % 2 ? 'dark' : 'light'}`;
-          if (hasQueen) cell.classList.add('queen');
-          if (isGhost) cell.classList.add('backtracking');
-          if (step.row === r && step.colTry === c && step.type === 'try') cell.classList.add('trying');
-          if (step.row === r && step.colTry === c && step.type === 'reject') cell.classList.add('reject');
-          if (step.type === 'solution' && hasQueen) cell.classList.add('solution');
-          cell.innerHTML = `<small>${r},${c}</small>${hasQueen || isGhost ? '<span class="queen-symbol">Q</span>' : ''}`;
-          board.appendChild(cell);
-        }
-      }
-    }
-
-    function renderArray(target, arr, start, end) {
-      const box = document.getElementById(target);
-      box.innerHTML = '';
-      for (let i = start; i <= end; i++) {
-        const chip = document.createElement('span');
-        chip.className = `chip ${arr[i] ? 'on' : ''}`;
-        chip.textContent = i;
-        box.appendChild(chip);
-      }
-    }
-
-    function renderPicker() {
-      const picker = document.getElementById('nPicker');
-      picker.innerHTML = '';
-      for (let value = 3; value <= 9; value++) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `n-btn ${value === state.n ? 'active' : ''}`;
-        button.textContent = value;
-        button.setAttribute('aria-label', `n을 ${value}로 설정`);
-        button.addEventListener('click', () => {
-          state.n = value;
-          resetQueen();
-        });
-        picker.appendChild(button);
-      }
-    }
-
-    function createSvgElement(tag, attributes) {
-      const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
-      Object.entries(attributes || {}).forEach(([key, value]) => element.setAttribute(key, value));
-      return element;
-    }
-
-    function applyGraphTransform() {
-      const content = document.getElementById('treeContent');
-      if (!content) return;
-      content.setAttribute('transform', `translate(${state.graph.x}, ${state.graph.y}) scale(${state.graph.scale})`);
-    }
-
-    function fitGraphToView() {
-      const svg = document.getElementById('treeSvg');
-      const rect = svg.getBoundingClientRect();
-      const viewWidth = rect.width || 760;
-      const viewHeight = rect.height || 560;
-      const scaleX = (viewWidth - 48) / Math.max(state.graph.worldWidth, 1);
-      const scaleY = (viewHeight - 48) / Math.max(state.graph.worldHeight, 1);
-      state.graph.scale = Math.max(0.18, Math.min(1.1, Math.min(scaleX, scaleY)));
-      state.graph.x = (viewWidth - state.graph.worldWidth * state.graph.scale) / 2;
-      state.graph.y = 24;
-      state.graph.initialized = true;
-      applyGraphTransform();
-    }
-
-    function zoomGraph(factor) {
-      const svg = document.getElementById('treeSvg');
-      const rect = svg.getBoundingClientRect();
-      const centerX = (rect.width || 760) / 2;
-      const centerY = (rect.height || 560) / 2;
-      const oldScale = state.graph.scale;
-      const nextScale = Math.max(0.18, Math.min(2.6, oldScale * factor));
-      const worldX = (centerX - state.graph.x) / oldScale;
-      const worldY = (centerY - state.graph.y) / oldScale;
-      state.graph.scale = nextScale;
-      state.graph.x = centerX - worldX * nextScale;
-      state.graph.y = centerY - worldY * nextScale;
-      state.graph.initialized = true;
-      applyGraphTransform();
-    }
-
-    function renderTree(step) {
-      const svg = document.getElementById('treeSvg');
-      const viewport = svg.getBoundingClientRect();
-      const viewportWidth = Math.max(320, Math.round(viewport.width || 760));
-      const viewportHeight = Math.max(420, Math.round(viewport.height || 560));
-      const nodes = step.nodes || [];
-      if (!nodes.length) {
-        svg.innerHTML = '';
+  function buildQueenSteps(n){
+    const steps=[]; const board=[];
+    const col=Array(n+1).fill(false), inc=Array(2*n+2).fill(false), dec=Array(2*n+2).fill(false);
+    const treeNodes=[{id:'root',parentId:null,row:0,col:0,label:'Start',status:'root',depth:0}];
+    const pathNodeIds=['root']; let nodeSerial=0,tries=0,backs=0,answers=0;
+    function cloneNodes(){ return treeNodes.map(n=>Object.assign({},n)); }
+    function snapshot(extra){ steps.push(Object.assign({ board:board.slice(),col:col.slice(),inc:inc.slice(),dec:dec.slice(),tries,backs,answers,row:board.length+1,nodes:cloneNodes(),pathNodeIds:pathNodeIds.slice() },extra)); }
+    snapshot({type:'start',activeNodeId:'root',message:'첫 번째 행에서 왼쪽 열부터 검사를 시작'});
+    function solve(row){
+      if(row>n){
+        answers++;
+        const lastNode=treeNodes.find(n=>n.id===pathNodeIds[pathNodeIds.length-1]);
+        if(lastNode) lastNode.status='solution';
+        snapshot({type:'solution',row,activeNodeId:lastNode?lastNode.id:'root',message:`해 ${answers} 발견: [${board.join(', ')}]`});
+        if(lastNode) lastNode.status='place';
         return;
       }
-
-      const pathSet = new Set(step.pathNodeIds || []);
-      const finalStep = state.steps[state.steps.length - 1] || step;
-      const layoutNodes = finalStep.nodes || nodes;
-      const nodeMap = new Map(layoutNodes.map((node) => [node.id, node]));
-      const visibleNodeMap = new Map(nodes.map((node) => [node.id, node]));
-      const children = new Map();
-      const positions = new Map();
-      const levelGap = 92;
-      const nodeGap = 38;
-      const marginX = 34;
-      const marginY = 42;
-      let nextLeafX = marginX;
-
-      layoutNodes.forEach((node) => children.set(node.id, []));
-      layoutNodes.forEach((node) => {
-        if (node.parentId && children.has(node.parentId)) children.get(node.parentId).push(node);
-      });
-
-      function layout(node) {
-        const childList = children.get(node.id) || [];
-        if (!childList.length) {
-          const x = nextLeafX;
-          nextLeafX += nodeGap;
-          positions.set(node.id, { x, y: marginY + node.depth * levelGap });
-          return x;
-        }
-
-        const childXs = childList.map(layout);
-        const x = (childXs[0] + childXs[childXs.length - 1]) / 2;
-        positions.set(node.id, { x, y: marginY + node.depth * levelGap });
-        return x;
+      let placed=false;
+      for(let c=1;c<=n;c++){
+        tries++;
+        const incIndex=row+c, decIndex=n+(row-c)+1; const reasons=[];
+        const node={id:`node-${++nodeSerial}`,parentId:pathNodeIds[pathNodeIds.length-1],row,col:c,label:`${row},${c}`,status:'try',depth:row};
+        treeNodes.push(node);
+        if(col[c]) reasons.push(`col[${c}]`);
+        if(inc[incIndex]) reasons.push(`inc[${incIndex}]`);
+        if(dec[decIndex]) reasons.push(`dec[${decIndex}]`);
+        if(reasons.length) node.status='reject';
+        snapshot({ type:reasons.length?'reject':'try', row, colTry:c, incIndex, decIndex, activeNodeId:node.id,
+          message:reasons.length?`${row}행 ${c}열: ${reasons.join(', ')}이 이미 사용 중 → 실패`:`${row}행 ${c}열: 세 배열 모두 비어 퀸을 놓음` });
+        if(reasons.length) continue;
+        placed=true; node.status='place'; pathNodeIds.push(node.id);
+        board.push(c); col[c]=inc[incIndex]=dec[decIndex]=true;
+        snapshot({type:'place',row,colTry:c,incIndex,decIndex,activeNodeId:node.id,message:`체크: col[${c}], inc[${incIndex}], dec[${decIndex}]`});
+        solve(row+1);
+        board.pop(); pathNodeIds.pop(); col[c]=inc[incIndex]=dec[decIndex]=false; backs++;
+        snapshot({type:'backtrack',row,colTry:c,incIndex,decIndex,ghostQueen:{row,col:c},activeNodeId:node.id,message:`백트래킹: ${row}행 ${c}열 퀸 제거, 세 배열 흔적 지움`});
       }
-
-      layout(layoutNodes[0]);
-      const maxX = Math.max(...Array.from(positions.values()).map((pos) => pos.x), 760 - marginX);
-      const maxDepth = Math.max(...layoutNodes.map((node) => node.depth), state.n);
-      const width = Math.max(760, maxX + marginX);
-      const height = marginY * 2 + (maxDepth + 1) * levelGap;
-
-      state.graph.worldWidth = width;
-      state.graph.worldHeight = height;
-      const graphIsActive = document.getElementById('graphPane').classList.contains('active');
-      const shouldFitAfterRender = !state.graph.initialized && graphIsActive;
-
-      svg.setAttribute('width', viewportWidth);
-      svg.setAttribute('height', viewportHeight);
-      svg.setAttribute('viewBox', `0 0 ${viewportWidth} ${viewportHeight}`);
-      svg.innerHTML = '';
-      const content = createSvgElement('g', { id: 'treeContent' });
-      svg.appendChild(content);
-
-      nodes.forEach((node) => {
-        if (!node.parentId) return;
-        const parent = nodeMap.get(node.parentId);
-        const from = positions.get(node.parentId);
-        const to = positions.get(node.id);
-        if (!parent || !visibleNodeMap.has(parent.id) || !from || !to) return;
-        const isPath = pathSet.has(node.id) && pathSet.has(parent.id);
-        const midY = (from.y + to.y) / 2;
-        content.appendChild(createSvgElement('path', {
-          d: `M ${from.x} ${from.y + 18} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${to.y - 18}`,
-          class: `tree-edge ${isPath ? 'path' : ''}`,
-          fill: 'none'
-        }));
-      });
-
-      nodes.forEach((node) => {
-        const position = positions.get(node.id);
-        if (!position) return;
-        const group = createSvgElement('g', {
-          class: `tree-node ${node.status} ${node.id === step.activeNodeId ? 'current' : ''}`,
-          transform: `translate(${position.x}, ${position.y})`
-        });
-        if (node.id === step.activeNodeId) group.appendChild(createSvgElement('circle', { cx: 0, cy: 0, r: 22, class: 'halo' }));
-        group.appendChild(createSvgElement('circle', { cx: 0, cy: 0, r: 18 }));
-        const label = createSvgElement('text', { x: 0, y: node.id === 'root' ? 0 : -1 });
-        label.textContent = node.label;
-        group.appendChild(label);
-        if (node.status === 'reject') {
-          const mark = createSvgElement('text', { x: 0, y: 32, class: 'mark' });
-          mark.textContent = 'x';
-          group.appendChild(mark);
-        }
-        content.appendChild(group);
-      });
-      if (shouldFitAfterRender) {
-        fitGraphToView();
-      } else {
-        applyGraphTransform();
-      }
+      if(!placed) snapshot({type:'deadend',row,activeNodeId:pathNodeIds[pathNodeIds.length-1],message:`${row}행에 놓을 열이 없음 → 이전 행으로`});
     }
+    solve(1);
+    snapshot({type:'done',row:n+1,activeNodeId:'root',message:`탐색 완료: 총 ${answers}개의 해`});
+    return steps;
+  }
 
-    function renderQueen() {
-      const step = state.steps[state.stepIndex];
-      if (!step) return;
+  function renderLabels(){
+    const files=document.getElementById('files'), ranks=document.getElementById('ranks');
+    files.style.gridTemplateColumns=`repeat(${state.n},1fr)`;
+    ranks.style.gridTemplateRows=`repeat(${state.n},1fr)`;
+    files.innerHTML=''; ranks.innerHTML='';
+    for(let c=1;c<=state.n;c++){ const s=document.createElement('span'); s.textContent=c; files.appendChild(s); }
+    for(let r=1;r<=state.n;r++){ const s=document.createElement('span'); s.textContent=r; ranks.appendChild(s); }
+  }
 
-      renderBoard(step);
-      renderArray('colArray', step.col, 1, state.n);
-      renderArray('incArray', step.inc, 2, state.n * 2);
-      renderArray('decArray', step.dec, 1, state.n * 2);
-      renderPicker();
-      renderTree(step);
-
-      document.getElementById('rowMetric').textContent = step.row > state.n ? '-' : step.row;
-      document.getElementById('tryMetric').textContent = step.tries;
-      document.getElementById('solutionMetric').textContent = step.answers;
-      document.getElementById('backMetric').textContent = step.backs;
-      document.getElementById('queenExplain').textContent = step.message;
-      document.getElementById('formulaBox').innerHTML = step.colTry
-        ? `<strong>${step.row}행 ${step.colTry}열</strong>을 검사합니다. 같은 열은 <code>col[${step.colTry}]</code>로 확인하고, / 방향 대각선은 <code>inc = r + c = ${step.row} + ${step.colTry} = ${step.incIndex}</code>로 확인합니다. \\ 방향 대각선은 <code>dec = n + (r - c) + 1 = ${state.n} + (${step.row} - ${step.colTry}) + 1 = ${step.decIndex}</code>로 확인합니다. 여기서 r-c에 같은 수 n을 더해도 같은 값끼리는 여전히 같기 때문에, 음수 인덱스만 피하면서 배열로 대각선을 표시할 수 있습니다.`
-        : '퀸을 놓을 후보 칸을 검사할 때마다 <strong>열 col</strong>, <strong>/ 방향 inc</strong>, <strong>\\ 방향 dec</strong> 배열의 인덱스를 계산합니다. 세 배열 중 하나라도 이미 사용 중이면 그 칸에는 퀸을 놓을 수 없고, 모두 비어 있으면 퀸을 놓고 다음 행으로 내려갑니다.';
-
-      document.getElementById('prevQueen').disabled = state.stepIndex === 0;
-      document.getElementById('nextQueen').disabled = state.stepIndex >= state.steps.length - 1;
+  function renderBoard(step){
+    const board=document.getElementById('board');
+    board.style.setProperty('--n',state.n); board.innerHTML='';
+    for(let r=1;r<=state.n;r++) for(let c=1;c<=state.n;c++){
+      const hasQueen=step.board[r-1]===c;
+      const isGhost=step.ghostQueen && step.ghostQueen.row===r && step.ghostQueen.col===c;
+      const isTried=step.row===r && step.colTry===c;
+      const cell=document.createElement('div');
+      cell.className=`cell ${(r+c)%2?'dark':'light'}`;
+      if(isGhost) cell.classList.add('ghost');
+      if(hasQueen) cell.classList.add('placed');
+      if(isTried && step.type==='try') cell.classList.add('trying');
+      if(isTried && step.type==='reject') cell.classList.add('reject');
+      if(step.type==='solution' && hasQueen) cell.classList.add('solution');
+      cell.innerHTML=`<span class="coord">${r},${c}</span>${(hasQueen||isGhost)?'<span class="queen"><svg viewBox="0 0 24 22"><path d="M2.6 7.4 L6 14 H18 L21.4 7.4 L16 11 L12 3.8 L8 11 Z"/><rect x="5.2" y="15" width="13.6" height="3.2" rx="1.3"/><circle cx="2.6" cy="6.2" r="1.5"/><circle cx="21.4" cy="6.2" r="1.5"/><circle cx="12" cy="2.9" r="1.6"/></svg></span>':''}`;
+      board.appendChild(cell);
     }
+  }
 
-    function resetQueen() {
-      stopQueenAuto();
-      state.graph.initialized = false;
-      state.steps = buildQueenSteps(state.n);
-      state.stepIndex = 0;
-      renderQueen();
-    }
+  function renderArray(target,arr,start,end,onClass){
+    const box=document.getElementById(target); box.innerHTML='';
+    for(let i=start;i<=end;i++){ const chip=document.createElement('span');
+      chip.className=`chip ${arr[i]?onClass:''}`; chip.textContent=i; box.appendChild(chip); }
+  }
 
-    function prevQueen() {
-      stopQueenAuto();
-      if (state.stepIndex > 0) {
-        state.stepIndex--;
-        renderQueen();
-      }
-    }
+  function renderPicker(){
+    const picker=document.getElementById('nPicker'); picker.innerHTML='';
+    for(let v=3;v<=9;v++){ const b=document.createElement('button'); b.type='button';
+      b.className=`n-btn ${v===state.n?'active':''}`; b.textContent=v;
+      b.setAttribute('aria-label',`n을 ${v}로 설정`);
+      b.addEventListener('click',()=>{ state.n=v; resetQueen(); }); picker.appendChild(b); }
+  }
 
-    function nextQueen() {
-      if (state.stepIndex < state.steps.length - 1) {
-        state.stepIndex++;
-        renderQueen();
-      } else {
-        stopQueenAuto();
-      }
-    }
+  function createSvgElement(tag,attrs){ const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+    Object.entries(attrs||{}).forEach(([k,v])=>el.setAttribute(k,v)); return el; }
+  function applyGraphTransform(){ const c=document.getElementById('treeContent'); if(!c) return;
+    c.setAttribute('transform',`translate(${state.graph.x}, ${state.graph.y}) scale(${state.graph.scale})`); }
+  function fitGraphToView(){
+    const svg=document.getElementById('treeSvg'); const rect=svg.getBoundingClientRect();
+    const vw=rect.width||760, vh=rect.height||520;
+    const sx=(vw-48)/Math.max(state.graph.worldWidth,1), sy=(vh-48)/Math.max(state.graph.worldHeight,1);
+    state.graph.scale=Math.max(.18,Math.min(1.1,Math.min(sx,sy)));
+    state.graph.x=(vw-state.graph.worldWidth*state.graph.scale)/2; state.graph.y=24;
+    state.graph.initialized=true; applyGraphTransform();
+  }
+  function zoomGraph(f){
+    const svg=document.getElementById('treeSvg'); const rect=svg.getBoundingClientRect();
+    const cx=(rect.width||760)/2, cy=(rect.height||520)/2, os=state.graph.scale;
+    const ns=Math.max(.18,Math.min(2.6,os*f));
+    const wx=(cx-state.graph.x)/os, wy=(cy-state.graph.y)/os;
+    state.graph.scale=ns; state.graph.x=cx-wx*ns; state.graph.y=cy-wy*ns;
+    state.graph.initialized=true; applyGraphTransform();
+  }
 
-    function stopQueenAuto() {
-      if (state.auto) clearInterval(state.auto);
-      state.auto = null;
-      document.getElementById('autoQueen').textContent = '자동';
-    }
+  function renderTree(step){
+    const svg=document.getElementById('treeSvg'); const viewport=svg.getBoundingClientRect();
+    const vw=Math.max(320,Math.round(viewport.width||760)), vh=Math.max(360,Math.round(viewport.height||520));
+    const nodes=step.nodes||[]; if(!nodes.length){ svg.innerHTML=''; return; }
+    const pathSet=new Set(step.pathNodeIds||[]);
+    const finalStep=state.steps[state.steps.length-1]||step; const layoutNodes=finalStep.nodes||nodes;
+    const nodeMap=new Map(layoutNodes.map(n=>[n.id,n])); const visibleNodeMap=new Map(nodes.map(n=>[n.id,n]));
+    const children=new Map(), positions=new Map();
+    const levelGap=92,nodeGap=38,marginX=34,marginY=42; let nextLeafX=marginX;
+    layoutNodes.forEach(n=>children.set(n.id,[]));
+    layoutNodes.forEach(n=>{ if(n.parentId&&children.has(n.parentId)) children.get(n.parentId).push(n); });
+    function layout(node){ const cl=children.get(node.id)||[];
+      if(!cl.length){ const x=nextLeafX; nextLeafX+=nodeGap; positions.set(node.id,{x,y:marginY+node.depth*levelGap}); return x; }
+      const xs=cl.map(layout); const x=(xs[0]+xs[xs.length-1])/2; positions.set(node.id,{x,y:marginY+node.depth*levelGap}); return x; }
+    layout(layoutNodes[0]);
+    const maxX=Math.max(...Array.from(positions.values()).map(p=>p.x),760-marginX);
+    const maxDepth=Math.max(...layoutNodes.map(n=>n.depth),state.n);
+    const width=Math.max(760,maxX+marginX), height=marginY*2+(maxDepth+1)*levelGap;
+    state.graph.worldWidth=width; state.graph.worldHeight=height;
+    const graphIsActive=document.getElementById('graphPane').classList.contains('active');
+    const shouldFit=!state.graph.initialized&&graphIsActive;
+    svg.setAttribute('width',vw); svg.setAttribute('height',vh); svg.setAttribute('viewBox',`0 0 ${vw} ${vh}`);
+    svg.innerHTML=''; const content=createSvgElement('g',{id:'treeContent'}); svg.appendChild(content);
+    nodes.forEach(node=>{ if(!node.parentId) return;
+      const parent=nodeMap.get(node.parentId); const from=positions.get(node.parentId), to=positions.get(node.id);
+      if(!parent||!visibleNodeMap.has(parent.id)||!from||!to) return;
+      const isPath=pathSet.has(node.id)&&pathSet.has(parent.id); const midY=(from.y+to.y)/2;
+      content.appendChild(createSvgElement('path',{ d:`M ${from.x} ${from.y+18} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${to.y-18}`, class:`tree-edge ${isPath?'path':''}`, fill:'none' })); });
+    nodes.forEach(node=>{ const p=positions.get(node.id); if(!p) return;
+      const g=createSvgElement('g',{ class:`tree-node ${node.status} ${node.id===step.activeNodeId?'current':''}`, transform:`translate(${p.x}, ${p.y})` });
+      if(node.id===step.activeNodeId) g.appendChild(createSvgElement('circle',{cx:0,cy:0,r:22,class:'halo'}));
+      g.appendChild(createSvgElement('circle',{cx:0,cy:0,r:18}));
+      const label=createSvgElement('text',{x:0,y:node.id==='root'?0:-1}); label.textContent=node.label; g.appendChild(label);
+      if(node.status==='reject'){ const m=createSvgElement('text',{x:0,y:32,class:'mark'}); m.textContent='✕'; g.appendChild(m); }
+      content.appendChild(g); });
+    if(shouldFit) fitGraphToView(); else applyGraphTransform();
+  }
 
-    function toggleQueenAuto() {
-      if (state.auto) {
-        stopQueenAuto();
-        return;
-      }
-      document.getElementById('autoQueen').textContent = '정지';
-      state.auto = setInterval(nextQueen, 620);
-    }
+  function renderQueen(){
+    const step=state.steps[state.stepIndex]; if(!step) return;
+    renderLabels(); renderBoard(step);
+    renderArray('colArray',step.col,1,state.n,'on-b');
+    renderArray('incArray',step.inc,2,state.n*2,'on-b');
+    renderArray('decArray',step.dec,1,state.n*2,'on-b');
+    renderPicker(); renderTree(step);
+    document.getElementById('rowMetric').textContent=step.row>state.n?'—':step.row;
+    document.getElementById('tryMetric').textContent=step.tries;
+    document.getElementById('solutionMetric').textContent=step.answers;
+    document.getElementById('backMetric').textContent=step.backs;
+    document.getElementById('queenExplain').textContent=step.message;
+    document.getElementById('formulaBox').innerHTML=step.colTry
+      ? `<strong>${step.row}행 ${step.colTry}열</strong> 검사. 같은 열은 <code>col[${step.colTry}]</code>, ↗ 대각선은 <code>inc = r+c = ${step.row}+${step.colTry} = ${step.incIndex}</code>, ↘ 대각선은 <code>dec = n+(r−c)+1 = ${state.n}+(${step.row}−${step.colTry})+1 = ${step.decIndex}</code>로 확인. r−c에 n을 더해도 같은 값끼리는 여전히 같으므로, 음수 인덱스를 피하면서 대각선을 배열로 표시할 수 있음.`
+      : '후보 칸마다 <strong>열 col</strong>, <strong>↗ inc</strong>, <strong>↘ dec</strong> 세 배열의 인덱스를 계산. 하나라도 사용 중이면 놓을 수 없고, 모두 비어 있으면 퀸을 놓고 다음 행으로 이동.';
+    document.getElementById('prevQueen').disabled=state.stepIndex===0;
+    document.getElementById('nextQueen').disabled=state.stepIndex>=state.steps.length-1;
+  }
 
-    function switchTab(tabName) {
-      document.querySelectorAll('.tab-btn').forEach((button) => {
-        const active = button.dataset.tab === tabName;
-        button.classList.toggle('active', active);
-        button.setAttribute('aria-selected', String(active));
-      });
-      document.getElementById('explainPane').classList.toggle('active', tabName === 'explain');
-      document.getElementById('graphPane').classList.toggle('active', tabName === 'graph');
-      if (tabName === 'graph') renderTree(state.steps[state.stepIndex]);
-    }
+  function resetQueen(){ stopQueenAuto(); state.graph.initialized=false; state.steps=buildQueenSteps(state.n); state.stepIndex=0; renderQueen(); }
+  function prevQueen(){ stopQueenAuto(); if(state.stepIndex>0){ state.stepIndex--; renderQueen(); } }
+  function nextQueen(){ if(state.stepIndex<state.steps.length-1){ state.stepIndex++; renderQueen(); } else stopQueenAuto(); }
+  function stopQueenAuto(){ if(state.auto) clearInterval(state.auto); state.auto=null;
+    const b=document.getElementById('autoQueen'); b.textContent='▶ 자동'; b.classList.remove('gold'); }
+  function toggleQueenAuto(){ if(state.auto){ stopQueenAuto(); return; }
+    const b=document.getElementById('autoQueen'); b.textContent='⏸ 정지'; b.classList.add('gold');
+    state.auto=setInterval(nextQueen,620); }
 
-    function startGraphDrag(event) {
-      if (event.target.closest('button')) return;
-      state.graph.dragging = true;
-      state.graph.dragStartX = event.clientX;
-      state.graph.dragStartY = event.clientY;
-      state.graph.startX = state.graph.x;
-      state.graph.startY = state.graph.y;
-      event.currentTarget.classList.add('dragging');
-      event.currentTarget.setPointerCapture(event.pointerId);
-    }
+  function switchTab(tab){
+    document.querySelectorAll('.tab-btn').forEach(btn=>{ const a=btn.dataset.tab===tab;
+      btn.classList.toggle('active',a); btn.setAttribute('aria-selected',String(a)); });
+    document.getElementById('explainPane').classList.toggle('active',tab==='explain');
+    document.getElementById('graphPane').classList.toggle('active',tab==='graph');
+    if(tab==='graph') renderTree(state.steps[state.stepIndex]);
+  }
 
-    function moveGraphDrag(event) {
-      if (!state.graph.dragging) return;
-      state.graph.x = state.graph.startX + event.clientX - state.graph.dragStartX;
-      state.graph.y = state.graph.startY + event.clientY - state.graph.dragStartY;
-      applyGraphTransform();
-    }
+  function startGraphDrag(e){ if(e.target.closest('button')) return;
+    state.graph.dragging=true; state.graph.dragStartX=e.clientX; state.graph.dragStartY=e.clientY;
+    state.graph.startX=state.graph.x; state.graph.startY=state.graph.y;
+    e.currentTarget.classList.add('dragging'); e.currentTarget.setPointerCapture(e.pointerId); }
+  function moveGraphDrag(e){ if(!state.graph.dragging) return;
+    state.graph.x=state.graph.startX+e.clientX-state.graph.dragStartX;
+    state.graph.y=state.graph.startY+e.clientY-state.graph.dragStartY; applyGraphTransform(); }
+  function endGraphDrag(e){ state.graph.dragging=false; e.currentTarget.classList.remove('dragging');
+    if(e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); }
 
-    function endGraphDrag(event) {
-      state.graph.dragging = false;
-      event.currentTarget.classList.remove('dragging');
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    }
+  document.getElementById('resetQueen').addEventListener('click',resetQueen);
+  document.getElementById('prevQueen').addEventListener('click',prevQueen);
+  document.getElementById('nextQueen').addEventListener('click',nextQueen);
+  document.getElementById('autoQueen').addEventListener('click',toggleQueenAuto);
+  document.getElementById('zoomOutGraph').addEventListener('click',()=>zoomGraph(0.78));
+  document.getElementById('zoomInGraph').addEventListener('click',()=>zoomGraph(1.28));
+  document.getElementById('fitGraph').addEventListener('click',fitGraphToView);
+  document.querySelector('.tree-scroll').addEventListener('pointerdown',startGraphDrag);
+  document.querySelector('.tree-scroll').addEventListener('pointermove',moveGraphDrag);
+  document.querySelector('.tree-scroll').addEventListener('pointerup',endGraphDrag);
+  document.querySelector('.tree-scroll').addEventListener('pointercancel',endGraphDrag);
+  document.querySelectorAll('.tab-btn').forEach(btn=>btn.addEventListener('click',()=>switchTab(btn.dataset.tab)));
 
-    document.getElementById('resetQueen').addEventListener('click', resetQueen);
-    document.getElementById('prevQueen').addEventListener('click', prevQueen);
-    document.getElementById('nextQueen').addEventListener('click', nextQueen);
-    document.getElementById('autoQueen').addEventListener('click', toggleQueenAuto);
-    document.getElementById('zoomOutGraph').addEventListener('click', () => zoomGraph(0.78));
-    document.getElementById('zoomInGraph').addEventListener('click', () => zoomGraph(1.28));
-    document.getElementById('fitGraph').addEventListener('click', fitGraphToView);
-    document.querySelector('.tree-scroll').addEventListener('pointerdown', startGraphDrag);
-    document.querySelector('.tree-scroll').addEventListener('pointermove', moveGraphDrag);
-    document.querySelector('.tree-scroll').addEventListener('pointerup', endGraphDrag);
-    document.querySelector('.tree-scroll').addEventListener('pointercancel', endGraphDrag);
-    document.querySelectorAll('.tab-btn').forEach((button) => {
-      button.addEventListener('click', () => switchTab(button.dataset.tab));
-    });
-
-    resetQueen();
-  </script>
+  resetQueen();
+</script>
 </body>
 </html>
